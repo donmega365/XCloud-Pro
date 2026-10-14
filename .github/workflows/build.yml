@@ -1,16 +1,19 @@
 name: Build XCloud Pro APK
 
-'on': [push, workflow_dispatch]
+'on':
+push:
+branches:
+- main
+workflow_dispatch:
 
 jobs:
 build:
 runs-on: ubuntu-latest
-
 steps:
-  - name: Checkout repository
-    uses: actions/checkout@v4
+- name: Checkout repository
+uses: actions/checkout@v4
 
-  - name: Set up Java 17
+  - name: Set up Java
     uses: actions/setup-java@v4
     with:
       distribution: temurin
@@ -19,16 +22,12 @@ steps:
   - name: Set up Gradle
     uses: gradle/actions/setup-gradle@v4
 
-  - name: Check ZIP file
-    run: test -f XCloudPro-by-Flaxxy-Expanded-Starter.zip
-
-  - name: Extract project
+  - name: Extract Android project
     run: unzip -q XCloudPro-by-Flaxxy-Expanded-Starter.zip -d xcloud-project
 
-  - name: Configure Java and Kotlin
-    shell: bash
+  - name: Fix Java and Kotlin targets
     run: |
-      python3 -c 'from pathlib import Path; p=Path("xcloud-project/app/build.gradle"); s=p.read_text(); s=s.replace("    }\n}", "    }\n\n    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_17\n        targetCompatibility JavaVersion.VERSION_17\n    }\n\n    kotlinOptions {\n        jvmTarget = '\''17'\''\n    }\n}", 1) if "sourceCompatibility JavaVersion.VERSION_17" not in s else None; p.write_text(s)'
+      python3 -c "from pathlib import Path; p=Path('xcloud-project/app/build.gradle'); s=p.read_text(); s=s.replace('    }\n}', '    }\n\n    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_17\n        targetCompatibility JavaVersion.VERSION_17\n    }\n\n    kotlinOptions {\n        jvmTarget = \u002717\u0027\n    }\n}', 1) if 'sourceCompatibility JavaVersion.VERSION_17' not in s else None; p.write_text(s)"
 
   - name: Build APK
     run: gradle -p xcloud-project assembleDebug
