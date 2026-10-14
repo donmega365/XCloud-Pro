@@ -9,48 +9,39 @@ branches:
 jobs:
 build:
 runs-on: ubuntu-latest
+
 steps:
-- name: Checkout repository
-uses: actions/checkout@v4
+  - name: Checkout repository
+    uses: actions/checkout@v4
 
   - name: Set up Java
     uses: actions/setup-java@v5
     with:
       distribution: temurin
-      java-version: "17"
+      java-version: '17'
 
   - name: Set up Gradle
     uses: gradle/actions/setup-gradle@v4
 
   - name: Extract Android project
+    run: unzip -q XCloudPro-by-Flaxxy-Expanded-Starter.zip -d xcloud-project
+
+  - name: Fix JVM targets
     run: |
-      unzip -q XCloudPro-by-Flaxxy-Expanded-Starter.zip -d xcloud-project
+      sed -i '/compileOptions {/,$d' xcloud-project/app/build.gradle
+      sed -i '$d' xcloud-project/app/build.gradle
+      cat >> xcloud-project/app/build.gradle <<'EOF'
 
-  - name: Fix Java and Kotlin JVM targets
-    run: |
-      python3 - <<'PY'
-      from pathlib import Path
-
-      p = Path("xcloud-project/app/build.gradle")
-      s = p.read_text()
-
-      if "sourceCompatibility JavaVersion.VERSION_17" not in s:
-          s = s.rstrip()
-          pos = s.rfind("}")
-          if pos == -1:
-              raise SystemExit("Invalid app/build.gradle")
-          s = s[:pos] + """
+      android {
           compileOptions {
               sourceCompatibility JavaVersion.VERSION_17
               targetCompatibility JavaVersion.VERSION_17
           }
-
           kotlinOptions {
               jvmTarget = '17'
           }
-      """ + s[pos:]
-          p.write_text(s)
-      PY
+      }
+      EOF
 
   - name: Build debug APK
     run: gradle -p xcloud-project assembleDebug
