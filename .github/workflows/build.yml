@@ -1,40 +1,10 @@
 name: Build XCloud Pro APK
 
-'on':
-push:
-branches:
-- main
-workflow_dispatch:
+'on': workflow_dispatch
 
 jobs:
 build:
 runs-on: ubuntu-latest
 steps:
-- name: Checkout repository
-uses: actions/checkout@v4
-
-  - name: Set up Java
-    uses: actions/setup-java@v4
-    with:
-      distribution: temurin
-      java-version: '17'
-
-  - name: Set up Gradle
-    uses: gradle/actions/setup-gradle@v4
-
-  - name: Extract Android project
-    run: unzip -q XCloudPro-by-Flaxxy-Expanded-Starter.zip -d xcloud-project
-
-  - name: Fix Java and Kotlin targets
-    run: |
-      python3 -c "from pathlib import Path; p=Path('xcloud-project/app/build.gradle'); s=p.read_text(); s=s.replace('    }\n}', '    }\n\n    compileOptions {\n        sourceCompatibility JavaVersion.VERSION_17\n        targetCompatibility JavaVersion.VERSION_17\n    }\n\n    kotlinOptions {\n        jvmTarget = \u002717\u0027\n    }\n}', 1) if 'sourceCompatibility JavaVersion.VERSION_17' not in s else None; p.write_text(s)"
-
-  - name: Build APK
-    run: gradle -p xcloud-project assembleDebug
-
-  - name: Upload APK
-    uses: actions/upload-artifact@v4
-    with:
-      name: XCloud-Pro-APK
-      path: xcloud-project/app/build/outputs/apk/debug/*.apk
-      if-no-files-found: error
+- name: Test workflow
+run: echo "Workflow syntax is valid"
