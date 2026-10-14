@@ -1,3 +1,4 @@
+
 name: Build XCloud Pro APK
 
 'on':
@@ -9,13 +10,12 @@ branches:
 jobs:
 build:
 runs-on: ubuntu-latest
-
 steps:
-  - name: Checkout repository
-    uses: actions/checkout@v4
+- name: Checkout repository
+uses: actions/checkout@v4
 
   - name: Set up Java
-    uses: actions/setup-java@v5
+    uses: actions/setup-java@v4
     with:
       distribution: temurin
       java-version: '17'
@@ -24,19 +24,34 @@ steps:
     uses: gradle/actions/setup-gradle@v4
 
   - name: Extract Android project
-    run: unzip -q XCloudPro-by-Flaxxy-Expanded-Starter.zip -d xcloud-project
-
-  - name: Fix JVM targets
     run: |
-      sed -i '/compileOptions {/,$d' xcloud-project/app/build.gradle
-      sed -i '$d' xcloud-project/app/build.gradle
-      cat >> xcloud-project/app/build.gradle <<'EOF'
+      unzip -q XCloudPro-by-Flaxxy-Expanded-Starter.zip -d xcloud-project
+
+  - name: Set Java and Kotlin targets
+    run: |
+      cat > xcloud-project/app/build.gradle <<'EOF'
+      plugins {
+          id 'com.android.application'
+          id 'org.jetbrains.kotlin.android'
+      }
 
       android {
+          namespace 'com.example.xcloudpro'
+          compileSdk 35
+
+          defaultConfig {
+              applicationId 'com.example.xcloudpro'
+              minSdk 23
+              targetSdk 35
+              versionCode 1
+              versionName '0.1.0'
+          }
+
           compileOptions {
               sourceCompatibility JavaVersion.VERSION_17
               targetCompatibility JavaVersion.VERSION_17
           }
+
           kotlinOptions {
               jvmTarget = '17'
           }
