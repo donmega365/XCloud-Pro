@@ -22,10 +22,6 @@ uses: actions/checkout@v4
   - name: Set up Gradle
     uses: gradle/actions/setup-gradle@v4
 
-  - name: Check project ZIP
-    run: |
-      test -f XCloudPro-by-Flaxxy-Expanded-Starter.zip
-
   - name: Extract Android project
     run: |
       unzip -q XCloudPro-by-Flaxxy-Expanded-Starter.zip -d xcloud-project
@@ -39,9 +35,11 @@ uses: actions/checkout@v4
       s = p.read_text()
 
       if "sourceCompatibility JavaVersion.VERSION_17" not in s:
-          marker = "    }\n}"
-          replacement = """    }
-
+          s = s.rstrip()
+          pos = s.rfind("}")
+          if pos == -1:
+              raise SystemExit("Invalid app/build.gradle")
+          s = s[:pos] + """
           compileOptions {
               sourceCompatibility JavaVersion.VERSION_17
               targetCompatibility JavaVersion.VERSION_17
@@ -50,14 +48,8 @@ uses: actions/checkout@v4
           kotlinOptions {
               jvmTarget = '17'
           }
-      }"""
-
-          if marker not in s:
-              raise SystemExit("Could not find expected Gradle configuration")
-
-          p.write_text(s.replace(marker, replacement, 1))
-
-      print("Java/Kotlin target configuration checked.")
+      """ + s[pos:]
+          p.write_text(s)
       PY
 
   - name: Build debug APK
