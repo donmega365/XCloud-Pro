@@ -9,10 +9,9 @@ branches:
 jobs:
 build:
 runs-on: ubuntu-latest
-
 steps:
-  - name: Checkout repository
-    uses: actions/checkout@v4
+- name: Checkout repository
+uses: actions/checkout@v4
 
   - name: Set up Java
     uses: actions/setup-java@v5
@@ -25,11 +24,7 @@ steps:
 
   - name: Check project ZIP
     run: |
-      test -f XCloudPro-by-Flaxxy-Expanded-Starter.zip || {
-        echo "ERROR: Project ZIP file not found!"
-        ls -la
-        exit 1
-      }
+      test -f XCloudPro-by-Flaxxy-Expanded-Starter.zip
 
   - name: Extract Android project
     run: |
@@ -41,28 +36,25 @@ steps:
       from pathlib import Path
 
       p = Path("xcloud-project/app/build.gradle")
-      if not p.exists():
-          raise SystemExit(f"Gradle file not found: {p}")
-
       s = p.read_text()
 
-      if "sourceCompatibility JavaVersion.VERSION_17" not in s:
-          s += """
+      s = s.replace(
+          "    }\n}",
+          """    }
 
-      android {
           compileOptions {
               sourceCompatibility JavaVersion.VERSION_17
               targetCompatibility JavaVersion.VERSION_17
           }
+
           kotlinOptions {
               jvmTarget = '17'
           }
-      }
-      """
-          p.write_text(s)
+      }""",
+          1
+      )
 
-      print("Updated Gradle file:", p)
-      print(p.read_text())
+      p.write_text(s)
       PY
 
   - name: Build debug APK
