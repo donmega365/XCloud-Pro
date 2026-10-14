@@ -1,48 +1,76 @@
-
 name: Build XCloud Pro APK
 
 on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
-
-permissions:
-  contents: read
+workflow_dispatch:
+push:
+branches:
+- main
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+build:
+runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v5
+steps:
+  - name: Checkout repository
+    uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: "17"
+  - name: Set up Java
+    uses: actions/setup-java@v5
+    with:
+      distribution: temurin
+      java-version: "17"
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+  - name: Set up Gradle
+    uses: gradle/actions/setup-gradle@v4
 
-      - name: Check project ZIP
-        run: |
-          ls -la
-          test -f XCloudPro-by-Flaxxy-Expanded-Starter.zip
+  - name: Check project ZIP
+    run: |
+      test -f XCloudPro-by-Flaxxy-Expanded-Starter.zip || {
+        echo "ERROR: Project ZIP file not found!"
+        ls -la
+        exit 1
+      }
 
-      - name: Extract Android project
-        run: |
-          unzip -q XCloudPro-by-Flaxxy-Expanded-Starter.zip -d xcloud-project
-          ls -la xcloud-project
+  - name: Extract Android project
+    run: |
+      unzip -q XCloudPro-by-Flaxxy-Expanded-Starter.zip -d xcloud-project
 
-      - name: Build debug APK
-        run: gradle -p xcloud-project assembleDebug
+  - name: Fix Java and Kotlin JVM targets
+    run: |
+      python3 - <<'PY'
+      from pathlib import Path
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: XCloud-Pro-APK
-          path: xcloud-project/app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
+      p = Path("xcloud-project/app/build.gradle")
+      if not p.exists():
+          raise SystemExit(f"Gradle file not found: {p}")
+
+      s = p.read_text()
+
+      if "sourceCompatibility JavaVersion.VERSION_17" not in s:
+          s += """
+
+      android {
+          compileOptions {
+              sourceCompatibility JavaVersion.VERSION_17
+              targetCompatibility JavaVersion.VERSION_17
+          }
+          kotlinOptions {
+              jvmTarget = '17'
+          }
+      }
+      """
+          p.write_text(s)
+
+      print("Updated Gradle file:", p)
+      print(p.read_text())
+      PY
+
+  - name: Build debug APK
+    run: gradle -p xcloud-project assembleDebug
+
+  - name: Upload APK
+    uses: actions/upload-artifact@v4
+    with:
+      name: XCloud-Pro-APK
+      path: xcloud-project/app/build/outputs/apk/debug/*.apk
+      if-no-files-found: error
