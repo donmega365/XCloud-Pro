@@ -1,10 +1,11 @@
 name: Build XCloud Pro APK
 
-'on': workflow_dispatch
+on:
+  workflow_dispatch:
 
 jobs:
-build:
-runs-on: ubuntu-latest
-steps:
-- name: Test workflow
-run: echo "Workflow syntax is valid"
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test workflow
+        run: echo "Workflow syntax is valid"
