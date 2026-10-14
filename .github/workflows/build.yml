@@ -1,6 +1,6 @@
 name: Build XCloud Pro APK
 
-on:
+'on':
 workflow_dispatch:
 push:
 branches:
@@ -38,9 +38,9 @@ uses: actions/checkout@v4
       p = Path("xcloud-project/app/build.gradle")
       s = p.read_text()
 
-      s = s.replace(
-          "    }\n}",
-          """    }
+      if "sourceCompatibility JavaVersion.VERSION_17" not in s:
+          marker = "    }\n}"
+          replacement = """    }
 
           compileOptions {
               sourceCompatibility JavaVersion.VERSION_17
@@ -50,11 +50,14 @@ uses: actions/checkout@v4
           kotlinOptions {
               jvmTarget = '17'
           }
-      }""",
-          1
-      )
+      }"""
 
-      p.write_text(s)
+          if marker not in s:
+              raise SystemExit("Could not find expected Gradle configuration")
+
+          p.write_text(s.replace(marker, replacement, 1))
+
+      print("Java/Kotlin target configuration checked.")
       PY
 
   - name: Build debug APK
