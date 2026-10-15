@@ -11,20 +11,20 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: actions/setup-java@v6
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
@@ -46,40 +46,95 @@ jobs:
           from pathlib import Path
           import re
 
-          root = Path("xcloud-project")
-          files = list(root.rglob("MainActivity.kt"))
-
+          files = list(Path("xcloud-project").rglob("MainActivity.kt"))
           if not files:
               raise SystemExit("ERROR: MainActivity.kt not found")
 
           for p in files:
               s = p.read_text(encoding="utf-8")
 
-              if not re.search(r'\bAlertDialog\b', s):
-                  print(f"No AlertDialog usage in {p}")
-                  continue
-
-              # Remove conflicting AlertDialog imports, if present.
+              # Ensure the native Android AlertDialog import exists.
               s = re.sub(
                   r'(?m)^import\s+(?:android\.app|androidx\.appcompat\.app)\.AlertDialog\s*\n',
                   '',
                   s
               )
 
-              # Insert the native Android AlertDialog import.
-              match = re.search(r'(?m)^package\s+[^;\n]+\s*\n', s)
+              match = re.search(r'(?m)^package\s+[^\n]+\n', s)
               if not match:
                   raise SystemExit(f"ERROR: package declaration missing in {p}")
 
-              s = (
-                  s[:match.end()]
-                  + "\nimport android.app.AlertDialog\n"
-                  + s[match.end():]
+              s = s[:match.end()] + "\nimport android.app.AlertDialog\n" + s[match.end():]
+              p.write_text(s, encoding="utf-8")
+              print(f"Checked AlertDialog import: {p}")
+          PY
+
+      - name: Align Java and Kotlin targets to 17
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path("xcloud-project/app/build.gradle")
+          if not p.exists():
+              raise SystemExit(f"ERROR: Gradle file not found: {p}")
+
+          s = p.read_text(encoding="utf-8")
+
+          # Align Java source/target compatibility.
+          s = re.sub(
+              r'JavaVersion\.VERSION_1_8',
+              'JavaVersion.VERSION_17',
+              s
+          )
+          s = re.sub(
+              r'(?m)^(\s*sourceCompatibility\s*=?\s*)["\']?1\.8["\']?',
+              r'\1JavaVersion.VERSION_17',
+              s
+          )
+          s = re.sub(
+              r'(?m)^(\s*targetCompatibility\s*=?\s*)["\']?1\.8["\']?',
+              r'\1JavaVersion.VERSION_17',
+              s
+          )
+
+          # Align Kotlin JVM target if the option already exists.
+          s, count = re.subn(
+              r'(?m)^(\s*jvmTarget\s*=\s*)["\'](?:1\.8|8|17)["\']',
+              r"\1'17'",
+              s
+          )
+
+          # Add missing Java compile options inside android {}.
+          if not re.search(r'\bsourceCompatibility\b', s):
+              s = re.sub(
+                  r'\bandroid\s*\{',
+                  'android {\\n    compileOptions {\\n'
+                  '        sourceCompatibility JavaVersion.VERSION_17\\n'
+                  '        targetCompatibility JavaVersion.VERSION_17\\n'
+                  '    }',
+                  s,
+                  count=1
               )
 
-              p.write_text(s, encoding="utf-8")
-              print(f"Added AlertDialog import to {p}")
+          # Add Kotlin JVM target if kotlinOptions is missing.
+          if 'kotlinOptions' not in s:
+              s = re.sub(
+                  r'\bandroid\s*\{',
+                  "android {\\n    kotlinOptions { jvmTarget = '17' }",
+                  s,
+                  count=1
+              )
+
+          p.write_text(s, encoding="utf-8")
+          print("Java and Kotlin targets configured for JVM 17")
           PY
+
+      - name: Verify target configuration
+        run: |
+          grep -nE "sourceCompatibility|targetCompatibility|jvmTarget|VERSION_17" \
+            xcloud-project/app/build.gradle || true
 
       - name: Build debug APK
         run: gradle --no-daemon -p xcloud-project assembleDebug
