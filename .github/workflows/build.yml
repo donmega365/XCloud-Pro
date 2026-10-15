@@ -26,12 +26,14 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Accept Android SDK licences
-        run: yes | sdkmanager --licenses
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
 
-      - name: Install Android SDK
+      - name: Install required Android packages
         run: |
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
       - name: Extract project
         run: unzip -q XCloudPro-by-Flaxxy-Expanded-Starter.zip -d xcloud-project
@@ -47,8 +49,8 @@ jobs:
               raise SystemExit(f"Gradle file not found: {p}")
 
           s = p.read_text()
-
           s = s.replace("JavaVersion.VERSION_1_8", "JavaVersion.VERSION_17")
+
           s = re.sub(
               r"(sourceCompatibility\s*[= ]\s*)['\"]?1\.8['\"]?",
               r"\1JavaVersion.VERSION_17", s
