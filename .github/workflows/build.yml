@@ -15,75 +15,73 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
           packages: platform-tools
 
-      - name: Install required Android packages
+      - name: Install Android packages
         run: |
           sdkmanager "platforms;android-35" "build-tools;35.0.0"
 
       - name: Extract project
-        run: unzip -q XCloudPro-by-Flaxxy-Expanded-Starter.zip -d xcloud-project
+        run: |
+          unzip -q XCloudPro-by-Flaxxy-Expanded-Starter.zip -d xcloud-project
 
-      - name: Align Java and Kotlin targets
+      - name: Fix AlertDialog import
+        shell: bash
         run: |
           python3 - <<'PY'
           from pathlib import Path
           import re
 
-          p = Path("xcloud-project/app/build.gradle")
-          if not p.exists():
-              raise SystemExit(f"Gradle file not found: {p}")
+          root = Path("xcloud-project")
+          files = list(root.rglob("MainActivity.kt"))
 
-          s = p.read_text()
-          s = s.replace("JavaVersion.VERSION_1_8", "JavaVersion.VERSION_17")
+          if not files:
+              raise SystemExit("ERROR: MainActivity.kt not found")
 
-          s = re.sub(
-              r"(sourceCompatibility\s*[= ]\s*)['\"]?1\.8['\"]?",
-              r"\1JavaVersion.VERSION_17", s
-          )
-          s = re.sub(
-              r"(targetCompatibility\s*[= ]\s*)['\"]?1\.8['\"]?",
-              r"\1JavaVersion.VERSION_17", s
-          )
+          for p in files:
+              s = p.read_text(encoding="utf-8")
 
-          if "compileOptions" not in s:
-              s = s.replace(
-                  "android {",
-                  "android {\n"
-                  "    compileOptions {\n"
-                  "        sourceCompatibility JavaVersion.VERSION_17\n"
-                  "        targetCompatibility JavaVersion.VERSION_17\n"
-                  "    }\n",
-                  1
+              if not re.search(r'\bAlertDialog\b', s):
+                  print(f"No AlertDialog usage in {p}")
+                  continue
+
+              # Remove conflicting AlertDialog imports, if present.
+              s = re.sub(
+                  r'(?m)^import\s+(?:android\.app|androidx\.appcompat\.app)\.AlertDialog\s*\n',
+                  '',
+                  s
               )
 
-          if "kotlinOptions" not in s:
-              s = s.replace(
-                  "android {",
-                  "android {\n"
-                  "    kotlinOptions { jvmTarget = '17' }\n",
-                  1
+              # Insert the native Android AlertDialog import.
+              match = re.search(r'(?m)^package\s+[^;\n]+\s*\n', s)
+              if not match:
+                  raise SystemExit(f"ERROR: package declaration missing in {p}")
+
+              s = (
+                  s[:match.end()]
+                  + "\nimport android.app.AlertDialog\n"
+                  + s[match.end():]
               )
 
-          p.write_text(s)
-          print("Configured Java/Kotlin target 17")
+              p.write_text(s, encoding="utf-8")
+              print(f"Added AlertDialog import to {p}")
           PY
 
-      - name: Build APK
+      - name: Build debug APK
         run: gradle --no-daemon -p xcloud-project assembleDebug
 
       - name: Upload APK
